@@ -1,6 +1,14 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { forwardRef, useCallback, useMemo } from 'react';
 import { GestureResponderEvent, TouchableWithoutFeedbackProps, TouchableWithoutFeedback, View } from 'react-native';
 import Reanimated, { useAnimatedStyle, useSharedValue, withSpring, WithSpringConfig } from 'react-native-reanimated';
+
+// Wrap TouchableWithoutFeedback with forwardRef to allow refs
+const TouchableWithoutFeedbackWithRef = forwardRef<TouchableWithoutFeedback, TouchableWithoutFeedbackProps>((props, ref) => {
+	return <TouchableWithoutFeedback {...props} ref={ref as React.LegacyRef<TouchableWithoutFeedback>} />;
+});
+
+// Wrap TouchableWithoutFeedbackWithRef in Reanimated.createAnimatedComponent
+const ReanimatedTouchableWithoutFeedback = Reanimated.createAnimatedComponent(TouchableWithoutFeedbackWithRef);
 
 export interface PressableScaleProps extends TouchableWithoutFeedbackProps, Partial<Omit<WithSpringConfig, 'mass'>> {
 	children: React.ReactNode;
@@ -16,8 +24,6 @@ export interface PressableScaleProps extends TouchableWithoutFeedbackProps, Part
 	 */
 	weight?: 'light' | 'medium' | 'heavy';
 }
-
-const ReanimatedTouchableWithoutFeedback = Reanimated.createAnimatedComponent(TouchableWithoutFeedback);
 
 /**
  * A Pressable that scales down when pressed. Uses the JS Pressability API.
@@ -64,11 +70,10 @@ export function PressableScale(props: PressableScaleProps): React.ReactElement {
 		}),
 		[damping, mass, overshootClamping, restDisplacementThreshold, restSpeedThreshold, stiffness],
 	);
-	const touchableStyle = useAnimatedStyle(() => ({ transform: [{ scale: withSpring(isPressedIn.value ? activeScale : 1, springConfig) }] }), [
-		activeScale,
-		isPressedIn,
-		springConfig,
-	]);
+
+	const touchableStyle = useAnimatedStyle(() => ({
+		transform: [{ scale: withSpring(isPressedIn.value ? activeScale : 1, springConfig) }],
+	}), [activeScale, isPressedIn, springConfig]);
 
 	const onPressIn = useCallback(
 		(event: GestureResponderEvent) => {
@@ -77,6 +82,7 @@ export function PressableScale(props: PressableScaleProps): React.ReactElement {
 		},
 		[_onPressIn, isPressedIn],
 	);
+
 	const onPressOut = useCallback(
 		(event: GestureResponderEvent) => {
 			isPressedIn.value = false;
@@ -87,11 +93,12 @@ export function PressableScale(props: PressableScaleProps): React.ReactElement {
 
 	return (
 		<ReanimatedTouchableWithoutFeedback
+			{...passThroughProps}
 			delayPressIn={delayPressIn}
 			onPressIn={onPressIn}
 			onPressOut={onPressOut}
 			style={touchableStyle}
-			{...passThroughProps}>
+		>
 			<View style={style}>{children}</View>
 		</ReanimatedTouchableWithoutFeedback>
 	);
